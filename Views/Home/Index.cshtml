@@ -1,0 +1,625 @@
+﻿@model IEnumerable<LichCongTacWeb.Models.Leader>
+@{
+    /* * ==============================================================================
+     * THIẾT LẬP DỮ LIỆU THỜI GIAN VÀ BIẾN ĐIỀU HƯỚNG
+     * ==============================================================================
+     */
+    DateTime startOfWeek = ViewBag.StartOfWeek;
+    DateTime today = ViewBag.Today;
+    int weekOffset = ViewBag.WeekOffset ?? 0;
+
+    /* * XỬ LÝ LOGIC HIỂN THỊ TÊN ĐƠN VỊ
+     * Logic này lấy từ ViewBag để hiển thị tiêu đề động tùy theo bộ lọc
+     */
+    var selectedDeptId = ViewBag.SelectedDeptId as int?;
+    var departments = ViewBag.Departments as IEnumerable<LichCongTacWeb.Models.Department>;
+    string displayDeptName = "TRUNG TÂM CÔNG NGHỆ THÔNG TIN VÀ TRUYỀN THÔNG";
+
+    if (selectedDeptId.HasValue && selectedDeptId.Value > 0 && departments != null)
+    {
+        var dept = departments.FirstOrDefault(d => d.Id == selectedDeptId.Value);
+        if (dept != null)
+        {
+            displayDeptName = dept.Name.ToUpper();
+        }
+    }
+    string[] dayLabels = { "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật" };
+}
+
+<style>
+    /* 1.1. Cấu hình biến màu sắc chủ đạo (Lào Cai Theme) */
+    :root {
+        --lc-red: #d32f2f;
+        --lc-dark-red: #b71c1c;
+        --lc-gold: #ffeb3b;
+        --lc-bg-gray: #f8f9fa;
+        --lc-border: #dee2e6;
+        --lc-today-bg: #fffde7;
+        --lc-blue: #1a73e8;
+        --lc-green: #34a853;
+        --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+        --transition: all 0.3s ease;
+    }
+
+    /* 1.2. Reset & General Styles */
+    body {
+        background-color: #fff;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        color: #333;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* 1.3. Header Section */
+    .laocai-header {
+        background-color: var(--lc-red);
+        background-image: linear-gradient(135deg, var(--lc-dark-red) 0%, var(--lc-red) 100%);
+        padding: 40px 20px 50px 20px;
+        text-align: center;
+        color: white;
+        border-bottom: 6px solid var(--lc-gold);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .laocai-title {
+        font-weight: 900;
+        text-transform: uppercase;
+        font-size: 2.2rem;
+        margin-bottom: 10px;
+        letter-spacing: 1.5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .dept-title {
+        font-weight: 700;
+        font-size: 1.4rem;
+        color: var(--lc-gold);
+        text-transform: uppercase;
+        margin-bottom: 20px;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .date-badge {
+        background-color: rgba(0,0,0,0.25);
+        padding: 10px 30px;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid rgba(255,255,255,0.2);
+        backdrop-filter: blur(4px);
+    }
+
+    /* 1.4. Navigation & Filter Bar */
+    .filter-bar {
+        background-color: rgba(255,255,255,0.15);
+        padding: 20px;
+        border-radius: 15px;
+        display: inline-flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 30px;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .btn-nav, .select-custom {
+        background-color: #9e1a1a;
+        color: white !important;
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
+        padding: 12px 22px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: var(--transition);
+        cursor: pointer;
+        font-size: 0.95rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+        .btn-nav:hover {
+            background-color: var(--lc-dark-red);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+    .btn-active {
+        background-color: var(--lc-gold);
+        color: var(--lc-dark-red) !important;
+        border-color: var(--lc-gold);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .select-custom {
+        min-width: 240px;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 20px;
+        padding-right: 40px;
+    }
+
+    /* 1.5. Main Schedule Table Design */
+    .table-container {
+        padding: 30px;
+        background-color: #fff;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 12px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .table-lc {
+        width: 100%;
+        min-width: 1200px;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 1px solid var(--lc-border);
+    }
+
+        .table-lc thead th {
+            background-color: #fcfcfc;
+            color: var(--lc-dark-red);
+            text-align: center;
+            font-weight: 800;
+            padding: 20px 10px;
+            border: 1px solid var(--lc-border);
+            text-transform: uppercase;
+            font-size: 0.95rem;
+        }
+
+    .today-highlight {
+        background-color: var(--lc-red) !important;
+        color: white !important;
+        position: relative;
+    }
+
+    .today-label {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--lc-gold);
+        color: var(--lc-dark-red);
+        font-size: 0.7rem;
+        padding: 3px 12px;
+        border-radius: 0 0 6px 6px;
+        font-weight: 900;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .leader-col {
+        background-color: #f9f9f9 !important;
+        width: 260px;
+        text-align: center;
+        padding: 25px 15px !important;
+        border: 1px solid var(--lc-border);
+        vertical-align: middle;
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    }
+
+    .leader-name {
+        color: var(--lc-red);
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 1.1rem;
+        margin-bottom: 5px;
+    }
+
+    .leader-pos {
+        font-size: 0.85rem;
+        color: #666;
+        font-style: italic;
+    }
+
+    .schedule-cell {
+        vertical-align: top;
+        padding: 15px !important;
+        border: 1px solid var(--lc-border);
+        min-width: 220px;
+    }
+
+    .today-column-active {
+        background-color: var(--lc-today-bg) !important;
+    }
+
+    /* 1.6. Work Card Styles */
+    .work-card {
+        background-color: white;
+        border: 1px solid #eef0f2;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        border-left-width: 6px;
+        transition: var(--transition);
+        text-align: left;
+    }
+
+        .work-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+
+    .cat-meeting {
+        border-left-color: var(--lc-blue);
+    }
+
+    .cat-business {
+        border-left-color: var(--lc-green);
+    }
+
+    .cat-leave {
+        border-left-color: #ea4335;
+    }
+
+    .time-slot {
+        color: var(--lc-red);
+        font-weight: 800;
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .work-content {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 12px;
+        display: block;
+    }
+
+    .meta-info {
+        font-size: 0.85rem;
+        background-color: #fdfdfd;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #f0f0f0;
+    }
+
+    .work-location, .work-participants {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        margin-bottom: 5px;
+    }
+
+    /* 1.7. Mobile View Styles */
+    .mobile-schedule-list {
+        display: none; /* Ẩn mặc định trên Desktop */
+    }
+
+    @@media(max - width: 992px) {
+            .table-responsive {
+                display: none;
+            }
+            /* Ẩn bảng trên mobile */
+            .mobile-schedule-list {
+                display: block;
+            }
+            /* Hiện danh sách trên mobile */
+
+            .laocai-title {
+                font-size: 1.5rem;
+            }
+
+            .dept-title {
+                font-size: 1.1rem;
+            }
+
+            .table-container {
+                padding: 15px;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn-nav, .select-custom {
+                width: 100%;
+                text-align: center;
+            }
+
+            .date-badge {
+                font-size: 0.9rem;
+                padding: 10px 15px;
+            }
+
+            .mobile-leader-section {
+                background: #fff;
+                border: 1px solid var(--lc-border);
+                border-radius: 12px;
+                margin-bottom: 25px;
+                overflow: hidden;
+                box-shadow: var(--shadow-md);
+            }
+
+            .mobile-leader-header {
+                background: #f8f9fa;
+                padding: 15px;
+                border-bottom: 2px solid var(--lc-red);
+                text-align: center;
+            }
+
+            .mobile-day-group {
+                padding: 10px;
+            }
+
+            .mobile-day-title {
+                background: #f1f3f5;
+                padding: 8px 15px;
+                font-weight: 700;
+                color: var(--lc-dark-red);
+                border-radius: 6px;
+                margin: 10px 0;
+                display: flex;
+                justify-content: space-between;
+            }
+
+                .mobile-day-title.is-today {
+                    background: var(--lc-red);
+                    color: #fff;
+                }
+        }
+
+        .attachment-link {
+            background: #f1f8e9;
+            color: #2e7d32 !important;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            text-decoration: none;
+            font-weight: 700;
+            border: 1px solid #c8e6c9;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 5px;
+        }
+
+        .empty-dash {
+            color: #ddd;
+            font-size: 1.5rem;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+
+    <div class="laocai-header">
+        <div class="laocai-title">
+            <i class="fas fa-calendar-check"></i>
+            <span>Lịch công tác tuần</span>
+        </div>
+
+        <div class="dept-title">@displayDeptName</div>
+
+        <div class="date-badge shadow-sm">
+            <i class="fas fa-clock text-warning"></i>
+            <span>
+                Từ <strong>@startOfWeek.ToString("dd/MM/yyyy")</strong>
+                đến <strong>@startOfWeek.AddDays(6).ToString("dd/MM/yyyy")</strong>
+            </span>
+        </div>
+
+        <br />
+
+        <div class="filter-bar">
+            <a asp-action="Index" asp-route-weekOffset="@(weekOffset - 1)" class="btn-nav">
+                <i class="fas fa-arrow-left"></i> Tuần trước
+            </a>
+
+            <a asp-action="Index" asp-route-weekOffset="0" class="btn-nav @(weekOffset == 0 ? "btn-active" : "")">
+                <i class="fas fa-calendar-day"></i> Tuần hiện tại
+            </a>
+
+            <a asp-action="Index" asp-route-weekOffset="@(weekOffset + 1)" class="btn-nav">
+                Tuần sau <i class="fas fa-arrow-right"></i>
+            </a>
+
+            <form method="get" asp-action="Index" id="filterForm" class="d-inline-flex flex-wrap gap-2 justify-content-center mt-2">
+                <input type="hidden" name="weekOffset" value="@weekOffset" />
+                <select name="leaderId" class="select-custom" onchange="this.form.submit()">
+                    <option value="">-- Lọc theo Lãnh đạo --</option>
+                    @if (ViewBag.Leaders != null)
+                    {
+                        foreach (var l in ViewBag.Leaders)
+                        {
+                            <!option value="@l.Id" @(ViewBag.SelectedLeaderId == l.Id ? "selected" : "")>@l.FullName</!option>
+                        }
+                    }
+                </select>
+
+                <select name="deptId" class="select-custom" onchange="this.form.submit()">
+                    <option value="">-- Lọc theo Đơn vị --</option>
+                    @if (ViewBag.Departments != null)
+                    {
+                        foreach (var d in ViewBag.Departments)
+                        {
+                            <!option value="@d.Id" @(ViewBag.SelectedDeptId == d.Id ? "selected" : "")>@d.Name</!option>
+                        }
+                    }
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-container" id="scheduleContainer">
+        <div class="table-responsive">
+            <table class="table-lc">
+                <thead>
+                    <tr>
+                        <th class="leader-col"><i class="fas fa-user-tie"></i><br />LÃNH ĐẠO</th>
+                        @for (int i = 0; i < 7; i++)
+                        {
+                            var d = startOfWeek.AddDays(i);
+                            var isToday = d.Date == today.Date;
+                            <th class="@(isToday ? "today-highlight" : "")">
+                                @if (isToday)
+                                {
+                                    <div class="today-label">HÔM NAY</div>
+                                }
+                                <span class="day-name">@dayLabels[i]</span><br />
+                                <small class="day-date">@d.ToString("dd/MM/yyyy")</small>
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null)
+                    {
+                        foreach (var leader in Model)
+                        {
+                            <tr>
+                                <td class="leader-col">
+                                    <div class="leader-name">Đ/C @leader.FullName</div>
+                                    <div class="leader-pos">@leader.Position</div>
+                                </td>
+                                @for (int i = 0; i < 7; i++)
+                                {
+                                    var d = startOfWeek.AddDays(i);
+                                    var isToday = d.Date == today.Date;
+                                    <td class="schedule-cell @(isToday ? "today-column-active" : "")">
+                                        @{
+                                            var daily = leader.Schedules?.Where(x => x.WorkDate.Date == d.Date).OrderBy(x => x.TimeSlot).ToList();
+                                        }
+                                        @if (daily != null && daily.Any())
+                                        {
+                                            foreach (var s in daily)
+                                            {
+                                                var cat = s.Category == "Họp" ? "cat-meeting" : s.Category == "Công tác" ? "cat-business" : (s.Category?.Contains("Nghỉ") == true ? "cat-leave" : "");
+                                                <div class="work-card @cat">
+                                                    <div class="time-slot"><i class="far fa-clock"></i> @s.TimeSlot</div>
+                                                    <div class="work-content">@s.Content</div>
+                                                    @if (!string.IsNullOrEmpty(s.Location) || !string.IsNullOrEmpty(s.AssigneeIds))
+                                                    {
+                                                        <div class="meta-info shadow-sm">
+                                                            @if (!string.IsNullOrEmpty(s.Location))
+                                                            {
+                                                                <div class="work-location"><i class="fas fa-map-marker-alt text-danger"></i> <span>@s.Location</span></div>
+                                                            }
+                                                            @if (!string.IsNullOrEmpty(s.AssigneeIds))
+                                                            {
+                                                                <div class="work-participants"><i class="fas fa-users"></i> <span>Phối hợp: @s.AssigneeIds</span></div>
+                                                            }
+                                                        </div>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(s.AttachmentPath))
+                                                    {
+                                                        foreach (var p in s.AttachmentPath.Split(','))
+                                                        {
+                                                            <a href="@p.Trim()" class="attachment-link" target="_blank"><i class="fas fa-file-pdf"></i> Tài liệu</a>
+                                                        }
+                                                    }
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+
+                                            <div class="empty-dash">&mdash;</div>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mobile-schedule-list">
+            @if (Model != null)
+            {
+                foreach (var leader in Model)
+                {
+                    <div class="mobile-leader-section">
+                        <div class="mobile-leader-header">
+                            <div class="leader-name">Đ/C @leader.FullName</div>
+                            <div class="leader-pos">@leader.Position</div>
+                        </div>
+                        <div class="mobile-day-group">
+                            @for (int i = 0; i < 7; i++)
+                            {
+                                var d = startOfWeek.AddDays(i);
+                                var isToday = d.Date == today.Date;
+                                var daily = leader.Schedules?.Where(x => x.WorkDate.Date == d.Date).OrderBy(x => x.TimeSlot).ToList();
+
+                                <div class="mobile-day-title @(isToday ? "is-today" : "")">
+                                    <span>@dayLabels[i] (@d.ToString("dd/MM"))</span>
+                                    @if (isToday)
+                                    {
+                                        <span>HÔM NAY</span>
+                                    }
+                                </div>
+
+                                @if (daily != null && daily.Any())
+                                {
+                                    foreach (var s in daily)
+                                    {
+                                        var cat = s.Category == "Họp" ? "cat-meeting" : s.Category == "Công tác" ? "cat-business" : (s.Category?.Contains("Nghỉ") == true ? "cat-leave" : "");
+                                        <div class="work-card @cat">
+                                            <div class="time-slot"><i class="far fa-clock"></i> @s.TimeSlot</div>
+                                            <div class="work-content">@s.Content</div>
+                                            @if (!string.IsNullOrEmpty(s.Location))
+                                            {
+                                                <div class="work-location"><i class="fas fa-map-marker-alt text-danger"></i> @s.Location</div>
+                                            }
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+
+                                    <div class="empty-dash" style="font-size: 1rem;">Không có lịch</div>
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <script>
+        function AutoRefreshSchedule() {
+            const container = document.getElementById('scheduleContainer');
+            if (!container) return;
+            const currentUrl = window.location.href;
+            const separator = currentUrl.indexOf('?') !== -1 ? '&' : '?';
+            const refreshUrl = currentUrl + separator + "nocache=" + new Date().getTime();
+
+            fetch(refreshUrl)
+                .then(res => res.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newContent = doc.getElementById('scheduleContainer');
+                    if (newContent) container.innerHTML = newContent.innerHTML;
+                })
+                .catch(err => console.warn("Lỗi cập nhật: ", err));
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setInterval(AutoRefreshSchedule, 10000);
+        });
+    </script>
