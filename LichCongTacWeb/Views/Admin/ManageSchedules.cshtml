@@ -1,0 +1,471 @@
+﻿@model IEnumerable<LichCongTacWeb.Models.Leader>
+@{
+    Layout = "_Layout";
+    var days = ViewBag.DaysInWeek as List<DateTime> ?? new List<DateTime>();
+    var schedules = ViewBag.Schedules as List<LichCongTacWeb.Models.Schedule> ?? new List<LichCongTacWeb.Models.Schedule>();
+    var allLeaders = ViewBag.AllLeaders as List<LichCongTacWeb.Models.Leader> ?? new List<LichCongTacWeb.Models.Leader>();
+    var departments = ViewBag.Departments as List<LichCongTacWeb.Models.Department> ?? new List<LichCongTacWeb.Models.Department>();
+
+    int weekOffset = ViewBag.WeekOffset ?? 0;
+    int currentDeptId = ViewBag.CurrentDeptId ?? 0;
+
+    string currentRole = Context.Session.GetString("Role") ?? "";
+    int? roleId = Context.Session.GetInt32("RoleId");
+
+    bool isAdmin = currentRole == "Admin" || roleId == 1;
+    bool isSecretary = currentRole == "Thư ký" || currentRole == "Secretary" || roleId == 4;
+    bool isManager = currentRole == "Manager" || roleId == 3;
+
+    bool hasEditPermission = isAdmin || isSecretary || isManager;
+
+    var selectedDept = departments.FirstOrDefault(d => d.Id == currentDeptId);
+    string deptDisplayName = selectedDept != null ? selectedDept.Name : "TRUNG TÂM CÔNG NGHỆ THÔNG TIN VÀ TRUYỀN THÔNG";
+}
+
+<style>
+    .laocai-header {
+        background-color: #d32f2f;
+        padding: 30px 10px 45px 10px;
+        text-align: center;
+        color: white;
+        border-bottom: 5px solid #ffeb3b;
+        margin-bottom: 20px;
+    }
+
+    .laocai-title {
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 1.8rem;
+        margin-bottom: 8px;
+        letter-spacing: 1px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .laocai-dept-name {
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #ffeb3b;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        display: block;
+    }
+
+    .date-badge {
+        background-color: rgba(0,0,0,0.25);
+        padding: 8px 30px;
+        border-radius: 25px;
+        font-size: 1rem;
+        display: inline-block;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .filter-bar {
+        background-color: rgba(0,0,0,0.15);
+        padding: 15px;
+        border-radius: 12px;
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        margin-top: 25px;
+        flex-wrap: wrap;
+        justify-content: center;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .btn-nav {
+        background-color: #9e1a1a;
+        color: white !important;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 6px;
+        padding: 8px 18px;
+        text-decoration: none;
+        transition: 0.3s;
+        font-size: 0.9rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        height: 38px;
+    }
+
+        .btn-nav:hover {
+            background-color: #7f1515;
+            transform: translateY(-1px);
+        }
+
+    .btn-active {
+        background-color: #ffeb3b !important;
+        color: #b71c1c !important;
+        font-weight: bold;
+        border-color: #ffeb3b;
+    }
+
+    .select-nav-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .select-nav {
+        background-color: #9e1a1a !important;
+        color: white !important;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 6px;
+        padding: 0 35px 0 15px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        outline: none;
+        cursor: pointer;
+        transition: 0.3s;
+        min-width: 250px;
+        height: 38px;
+        appearance: none;
+    }
+
+    .select-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: white;
+        pointer-events: none;
+    }
+
+    .table thead th {
+        background-color: #f8f9fa;
+        color: #333;
+        font-weight: bold;
+        border: 1px solid #dee2e6 !important;
+        text-align: center;
+        padding: 10px;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .today-header-highlight {
+        background-color: #d32f2f !important;
+        color: white !important;
+        position: relative;
+    }
+
+        .today-header-highlight::before {
+            content: "NAY";
+            position: absolute;
+            top: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffeb3b;
+            color: #d32f2f;
+            font-size: 10px;
+            padding: 0 5px;
+            font-weight: bold;
+            border-radius: 3px;
+            line-height: 14px;
+        }
+
+    .today-column-highlight {
+        background-color: #fffde7 !important;
+    }
+
+    .leader-col {
+        background-color: #fff !important;
+        width: 180px;
+        min-width: 180px;
+        text-align: center;
+        vertical-align: middle !important;
+        border-right: 2px solid #dee2e6 !important;
+        position: sticky;
+        left: 0;
+        z-index: 5;
+    }
+
+    .leader-name {
+        color: #b71c1c;
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+    }
+
+    .schedule-cell {
+        min-width: 280px;
+        vertical-align: top;
+        padding: 10px !important;
+        transition: 0.2s;
+    }
+
+    .work-card {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        position: relative;
+        cursor: pointer;
+        transition: 0.2s;
+        text-align: left;
+    }
+
+        .work-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-color: #d32f2f;
+        }
+
+    .cat-meeting {
+        border-left: 5px solid #1976d2;
+    }
+
+    .cat-business {
+        border-left: 5px solid #388e3c;
+    }
+
+    .cat-leave {
+        border-left: 5px solid #d32f2f;
+        background-color: #fff9c4 !important;
+    }
+
+    .time-slot {
+        color: #d32f2f;
+        font-weight: bold;
+        font-size: 0.8rem;
+        display: block;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+    }
+
+    .work-content {
+        font-size: 0.95rem;
+        color: #212121;
+        font-weight: 600;
+        line-height: 1.4;
+        display: block;
+        white-space: pre-line;
+    }
+
+    .work-location {
+        font-size: 0.8rem;
+        color: #d32f2f;
+        margin-top: 6px;
+        display: block;
+        padding-top: 4px;
+        border-top: 1px dotted #ccc;
+    }
+
+    .work-assignees {
+        font-size: 0.8rem;
+        color: #1565c0;
+        margin-top: 5px;
+        padding-top: 4px;
+        border-top: 1px dotted #bcd;
+        font-style: italic;
+    }
+
+    .work-attachments {
+        margin-top: 8px;
+        padding-top: 5px;
+        border-top: 1px solid #eee;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .attachment-item {
+        font-size: 0.75rem;
+        color: #28a745;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .delete-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 24px;
+        height: 24px;
+        background: #d32f2f;
+        color: white;
+        border-radius: 50%;
+        border: 2px solid white;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        z-index: 10;
+    }
+
+    .work-card:hover .delete-btn {
+        display: flex;
+    }
+</style>
+
+<div class="laocai-header">
+    <div class="laocai-title">LỊCH CÔNG TÁC</div>
+    <div class="laocai-dept-name">@deptDisplayName</div>
+
+    <div class="date-badge">
+        <i class="fa-solid fa-calendar-days me-2"></i>
+        Tuần từ <strong>@days.First().ToString("dd/MM")</strong> đến <strong>@days.Last().ToString("dd/MM/yyyy")</strong>
+    </div>
+
+    <div class="filter-bar shadow-sm">
+        <a href="?weekOffset=@(weekOffset - 1)&deptId=@currentDeptId" class="btn-nav"><i class="fa fa-chevron-left me-1"></i> Tuần trước</a>
+        <a href="?weekOffset=0&deptId=@currentDeptId" class="btn-nav @(weekOffset == 0 ? "btn-active" : "")">Tuần hiện tại</a>
+        <a href="?weekOffset=@(weekOffset + 1)&deptId=@currentDeptId" class="btn-nav">Tuần sau <i class="fa fa-chevron-right ms-1"></i></a>
+
+        <span class="mx-2 text-white-50">|</span>
+
+        @if (isAdmin || isSecretary)
+        {
+            <div class="select-nav-container">
+                <select class="select-nav" onchange="location.href='?weekOffset=@weekOffset&deptId='+this.value">
+                    <option value="0">-- XEM TẤT CẢ ĐƠN VỊ --</option>
+                    @foreach (var d in departments)
+                    {
+                        <option value="@d.Id" selected="@(currentDeptId == d.Id ? "selected" : null)">@d.Name</option>
+                    }
+                </select>
+                <i class="fa fa-caret-down select-icon"></i>
+            </div>
+        }
+
+        @if (hasEditPermission)
+        {
+            <a href="@Url.Action("CreateSchedule", "Admin")" class="btn-nav">
+                <i class="fa fa-plus-circle me-1"></i> THÊM LỊCH MỚI
+            </a>
+        }
+
+        <a href="@Url.Action("WeeklyReport", "Admin", new { weekOffset = weekOffset })" target="_blank" class="btn-nav" style="background-color: #ffeb3b; color: #b71c1c !important; font-weight: bold; border-color: #fdd835;">
+            <i class="fa fa-print me-1"></i> XUẤT LỊCH TUẦN
+        </a>
+    </div>
+</div>
+
+<div class="container-fluid mb-5">
+    <div class="table-responsive shadow-sm rounded">
+        @Html.AntiForgeryToken()
+        <table class="table table-bordered mb-0 bg-white">
+            <thead>
+                <tr>
+                    <th class="leader-col">CÁN BỘ THỰC HIỆN</th>
+                    @foreach (var day in days)
+                    {
+                        var isToday = day.Date == DateTime.Now.Date;
+                        <th class="@(isToday ? "today-header-highlight" : "")">
+                            <div style="font-size: 0.8rem; text-transform: uppercase; margin-bottom: 2px;">@day.ToString("dddd", new System.Globalization.CultureInfo("vi-VN"))</div>
+                            <div style="font-size: 1.2rem;">@day.ToString("dd/MM")</div>
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var leader in Model)
+                {
+                    <tr>
+                        <td class="leader-col">
+                            <div class="leader-name">@leader.FullName</div>
+                            <div class="small text-muted mt-1">@leader.Position</div>
+                        </td>
+                        @foreach (var day in days)
+                        {
+                            var isToday = day.Date == DateTime.Now.Date;
+                            var daySchedules = schedules.Where(s => s.LeaderId == leader.Id && s.WorkDate.Date == day.Date).OrderBy(s => s.TimeSlot);
+
+                            <td class="schedule-cell @(isToday ? "today-column-highlight" : "")"
+                                onclick="@(hasEditPermission ? $"location.href='{Url.Action("CreateSchedule", "Admin")}?leaderId={leader.Id}&date={day:yyyy-MM-dd}&deptId={leader.DepartmentId}'" : "")">
+
+                                @foreach (var s in daySchedules)
+                                {
+                                    // Xác định màu sắc: Nếu có chữ "Nghỉ phép" thì dùng màu vàng đặc biệt
+                                    var isLeave = (s.Content != null && s.Content.ToLower().Contains("nghỉ phép"));
+                                    var colorClass = isLeave ? "cat-leave" : ((s.Category == "Họp") ? "cat-meeting" : "cat-business");
+
+                                    <div class="work-card @colorClass" onclick="event.stopPropagation(); @(hasEditPermission ? $"location.href='{Url.Action("CreateSchedule", "Admin")}?id={s.Id}'" : "")">
+                                        <span class="time-slot"><i class="far fa-clock me-1"></i> @s.TimeSlot</span>
+                                        <span class="work-content">@s.Content</span>
+
+                                        @if (!string.IsNullOrEmpty(s.Location))
+                                        {
+                                            <span class="work-location"><i class="fa fa-map-marker-alt me-1"></i> @s.Location</span>
+                                        }
+
+                                        @if (!string.IsNullOrEmpty(s.AssigneeIds))
+                                        {
+                                            <div class="work-assignees">
+                                                <i class="fa fa-users me-1"></i>
+                                                @{
+                                                    // Xử lý hiển thị AssigneeIds (có thể chứa cả văn bản và ID cán bộ)
+                                                    var rawValue = s.AssigneeIds;
+                                                    // Nếu trong chuỗi có "TP:", ta giữ nguyên vì nó đã được định dạng ở View Create
+                                                    if (rawValue.Contains("TP:"))
+                                                    {
+                                                        @rawValue
+                                                    }
+                                                    else
+                                                    {
+                                                        // Fallback cho dữ liệu cũ chỉ chứa ID
+                                                        var idList = rawValue.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(id => id.Trim()).ToList();
+                                                        var names = allLeaders.Where(l => idList.Contains(l.Id.ToString())).Select(l => l.FullName);
+                                                        if (names.Any())
+                                                        {
+                                                            <text>TP: @string.Join(", ", names)</text>
+                                                        }
+                                                        else
+                                                        {
+                                                            @rawValue
+                                                        }
+                                                    }
+                                                }
+                                            </div>
+                                        }
+
+                                        @if (!string.IsNullOrEmpty(s.AttachmentPath))
+                                        {
+                                            <div class="work-attachments">
+                                                @{
+                                                    var filePaths = s.AttachmentPath.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                                    int fileCount = 1;
+                                                }
+                                                @foreach (var path in filePaths)
+                                                {
+                                                    <a href="@path" target="_blank" class="attachment-item" onclick="event.stopPropagation();">
+                                                        <i class="fa fa-file-pdf me-1"></i> Tài liệu @(filePaths.Length > 1 ? fileCount.ToString() : "")
+                                                    </a>
+                                                    fileCount++;
+                                                }
+                                            </div>
+                                        }
+
+                                        @if (hasEditPermission)
+                                        {
+                                            <div class="delete-btn" title="Xóa lịch" onclick="event.stopPropagation(); deleteSchedule(@s.Id)">✕</div>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function deleteSchedule(id) {
+            if (!confirm('Bạn có chắc chắn muốn xóa lịch này không?')) return;
+            const token = $('input[name="__RequestVerificationToken"]').val();
+            $.ajax({
+                url: '@Url.Action("DeleteSchedule", "Admin")',
+                type: 'POST',
+                data: { id: id, __RequestVerificationToken: token },
+                success: function(res) {
+                    if (res.success) location.reload();
+                    else alert("Lỗi: " + (res.message || "Không thể xóa lịch"));
+                },
+                error: function() { alert("Đã xảy ra lỗi kết nối."); }
+            });
+        }
+    </script>
+}
+a

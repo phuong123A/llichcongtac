@@ -1,0 +1,248 @@
+﻿@model IEnumerable<LichCongTacWeb.Models.Schedule>
+@{
+    Layout = null;
+    var startOfWeek = (DateTime)ViewBag.StartOfWeek;
+    var weekOffset = (int)ViewBag.WeekOffset;
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bản in Lịch Công Tác Tuần - Tỉnh Ủy Lào Cai</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+
+    <style>
+        body {
+            background-color: #f4f4f4;
+            font-family: "Times New Roman", Times, serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Cấu hình trang A4 để xem trên trình duyệt */
+        .page-print {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm 20mm;
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .header-table {
+            width: 100%;
+            border: none;
+            margin-bottom: 20px;
+        }
+
+        .header-left {
+            text-align: center;
+            width: 45%;
+            vertical-align: top;
+            line-height: 1.2;
+        }
+
+        .header-right {
+            text-align: center;
+            width: 55%;
+            vertical-align: top;
+            line-height: 1.2;
+        }
+
+        .line-short {
+            width: 120px;
+            border-top: 1.5px solid black;
+            margin: 5px auto;
+        }
+
+        .title-section {
+            text-align: center;
+            margin: 25px 0;
+        }
+
+        .title-main {
+            font-size: 16pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .title-sub {
+            font-size: 14pt;
+            font-style: italic;
+        }
+
+        .table-report {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            border: 1px solid black;
+        }
+
+            .table-report th, .table-report td {
+                border: 1px solid black !important;
+                padding: 8px 10px;
+                font-size: 13pt;
+                line-height: 1.3;
+                vertical-align: middle;
+            }
+
+            .table-report th {
+                background-color: #ececec !important;
+                text-align: center;
+                text-transform: uppercase;
+                font-weight: bold;
+            }
+
+        .footer-section {
+            margin-top: 40px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .signature-box {
+            text-align: center;
+            width: 300px;
+            font-size: 13pt;
+            line-height: 1.4;
+        }
+
+        .tool-bar {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        /* SỬA LỖI TẠI ĐÂY: Sử dụng @@ để Razor không hiểu nhầm là code C# */
+        @@media print
+        {
+                body {
+                    background: none;
+                    margin: 0;
+                    padding: 0;
+                }
+
+                .page-print {
+                    margin: 0;
+                    box-shadow: none;
+                    width: 100%;
+                    padding: 10mm 15mm; /* Căn chỉnh lề khi in */
+                }
+
+                .no-print {
+                    display: none !important;
+                }
+
+                .table-report th {
+                    background-color: #ececec !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                @@page
+                {
+                        size: A4;
+                        margin: 0;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+
+            <div class="tool-bar no-print">
+                <div class="btn-group-vertical shadow shadow-sm">
+                    <button onclick="window.print()" class="btn btn-danger btn-lg">
+                        <i class="fa fa-print me-2"></i> IN LỊCH (PDF)
+                    </button>
+                    <a href="@Url.Action("ManageSchedules", "Admin", new { weekOffset = weekOffset })" class="btn btn-light">
+                        <i class="fa fa-arrow-left me-2"></i> Quay lại
+                    </a>
+                </div>
+            </div>
+
+            <div class="page-print">
+                <table class="header-table">
+                    <tr>
+                        <td class="header-left">
+                            <span style="font-size: 13pt;">TỈNH ỦY LÀO CAI</span><br />
+                            <strong style="font-size: 14pt; text-decoration: underline;">VĂN PHÒNG</strong><br />
+                            <small>Số: .....-LCT/VPTU</small>
+                        </td>
+                        <td class="header-right">
+                            <strong style="font-size: 13pt;">ĐẢNG CỘNG SẢN VIỆT NAM</strong><br />
+                            <em style="font-size: 12pt;">Lào Cai, ngày @DateTime.Now.Day tháng @DateTime.Now.Month năm @DateTime.Now.Year</em>
+                            <div class="line-short"></div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="title-section">
+                    <div class="title-main">LỊCH CÔNG TÁC TUẦN CỦA LÃNH ĐẠO TỈNH ỦY</div>
+                    <div class="title-sub">
+                        (Từ ngày @startOfWeek.ToString("dd/MM") đến ngày @startOfWeek.AddDays(6).ToString("dd/MM/yyyy"))
+                    </div>
+                </div>
+
+                <table class="table-report">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Thứ, Ngày</th>
+                            <th style="width: 20%;">Lãnh đạo</th>
+                            <th style="width: 45%;">Nội dung công việc</th>
+                            <th style="width: 20%;">Địa điểm</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < 7; i++)
+                        {
+                            var date = startOfWeek.AddDays(i);
+                            var daySchedules = Model.Where(s => s.WorkDate.Date == date.Date).ToList();
+                            string dayName = (i == 6) ? "Chủ Nhật" : "Thứ " + (i + 2);
+
+                            if (!daySchedules.Any())
+                            {
+                                <tr>
+                                    <td class="text-center fw-bold">@dayName<br />@date.ToString("dd/MM")</td>
+                                    <td colspan="3" class="text-center text-muted italic small">Không có lịch công tác công bố</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                for (int j = 0; j < daySchedules.Count; j++)
+                                {
+                                    var item = daySchedules[j];
+                                    <tr>
+                                        @if (j == 0)
+                                        {
+                                            <td rowspan="@daySchedules.Count" class="text-center fw-bold">
+                                                @dayName<br />@date.ToString("dd/MM")
+                                            </td>
+                                        }
+                                        <td><strong>@item.Leader?.FullName</strong></td>
+                                        <td>@item.Content</td>
+                                        <td>@item.Location</td>
+                                    </tr>
+                                }
+                            }
+                        }
+                    </tbody>
+                </table>
+
+                <div class="footer-section">
+                    <div class="signature-box">
+                        <strong>CHÁNH VĂN PHÒNG</strong><br />
+                        <em style="font-size: 11pt;">(Ký tên, đóng dấu)</em>
+                        <br /><br /><br /><br /><br />
+                        <strong>Nguyễn Văn A</strong>
+                    </div>
+                </div>
+            </div>
+
+            <script src="~/lib/jquery/dist/jquery.min.js"></script>
+            <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        </body>
+        </html>

@@ -1,0 +1,342 @@
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+@{
+    var sRoleId = HttpContextAccessor.HttpContext.Session.GetInt32("RoleId") ?? 0;
+    bool isAdmin = (sRoleId == 1);
+    bool isSecretary = (sRoleId == 4);
+    bool canManage = isAdmin || isSecretary;
+    var fullName = User.FindFirst("FullName")?.Value ?? User.Identity.Name ?? "User";
+    var firstLetter = !string.IsNullOrEmpty(fullName) ? fullName.Substring(0, 1).ToUpper() : "U";
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Hệ thống Lịch Công Tác</title>
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <style>
+        :root {
+            --primary-color: #c62828;
+            --primary-dark: #8e0000;
+            --accent-color: #f9a825;
+            --bg-light: #f4f7f9;
+            --nav-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        body {
+            background-color: var(--bg-light);
+            font-family: 'Inter', sans-serif;
+            color: #2d3436;
+        }
+
+        /* Navbar Styling */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 0.5rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--primary-color) !important;
+            display: flex;
+            align-items: center;
+        }
+
+        .brand-icon {
+            background: var(--primary-color);
+            color: white;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            margin-right: 10px;
+            box-shadow: 0 4px 8px rgba(198, 40, 40, 0.3);
+        }
+
+        /* Custom Dropdown */
+        .nav-item.dropdown:hover > .dropdown-menu {
+            display: block;
+            margin-top: 0;
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-menu {
+            display: block;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.2s ease;
+            border: 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            padding: 0.5rem;
+        }
+
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+            .dropdown-item:hover {
+                background-color: #fff5f5;
+                color: var(--primary-color);
+                transform: translateX(5px);
+            }
+
+        /* User Profile Avatar */
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .badge-role {
+            font-size: 0.65rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Footer */
+        .footer {
+            background: white;
+            border-top: 1px solid #eee;
+            color: #636e72;
+            padding: 2rem 0;
+            margin-top: 5rem;
+        }
+
+        /* Buttons */
+        .btn-login {
+            background: var(--primary-color);
+            color: white !important;
+            border-radius: 10px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(198, 40, 40, 0.2);
+            transition: all 0.3s;
+        }
+
+            .btn-login:hover {
+                background: var(--primary-dark);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(198, 40, 40, 0.3);
+            }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg sticky-top mb-4">
+            <div class="container-fluid px-lg-5">
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                    <div class="brand-icon">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <span>LỊCH CÔNG TÁC</span>
+                </a>
+
+                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="navbarContent">
+                    <ul class="navbar-nav ms-auto align-items-center">
+
+                        @if (User.Identity.IsAuthenticated && canManage)
+                        {
+                            <li class="nav-item dropdown mx-lg-2">
+                                <a class="nav-link dropdown-toggle text-dark fw-bold" href="#" id="adminManage" role="button">
+                                    <i class="fa-solid fa-layer-group me-1 text-primary"></i> QUẢN TRỊ HỆ THỐNG
+                                </a>
+                                <ul class="dropdown-menu shadow border-0">
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="ManageSchedules"><i class="fa-solid fa-calendar-days me-2"></i>Quản lý Lịch công tác</a></li>
+                                    @if (isAdmin)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Admin" asp-action="Leaders"><i class="fa-solid fa-users-gear me-2"></i>Quản lý Nhân sự</a></li>
+                                    }
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="LeaveRequests"><i class="fa-solid fa-envelope-open-text me-2"></i>Duyệt đơn xin nghỉ</a></li>
+                                </ul>
+                            </li>
+                        }
+
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            <li class="nav-item dropdown ms-lg-3 ps-lg-3 border-start">
+                                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button">
+                                    <div class="user-avatar">@firstLetter</div>
+                                    <div class="text-start d-none d-sm-block">
+                                        <div class="small text-muted" style="line-height: 1">Xin chào,</div>
+                                        <div class="fw-bold text-dark">@fullName</div>
+                                    </div>
+                                    <div class="ms-2">
+                                        @if (isAdmin)
+                                        {
+                                            <span class="badge bg-danger badge-role">ADMIN</span>
+                                        }
+                                        else if (isSecretary)
+                                        {
+
+                                            <span class="badge bg-info text-dark badge-role">THƯ KÝ</span>
+                                        }
+                                        else
+                                        {
+
+                                            <span class="badge bg-secondary badge-role">LÃNH ĐẠO</span>
+                                        }
+                                    </div>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                    @if (!isAdmin)
+                                    {
+                                        <li>
+                                            <a class="dropdown-item py-2" href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#layoutLeaveModal">
+                                                <i class="fa-solid fa-calendar-plus me-2 text-warning"></i>Đăng ký nghỉ phép
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                    }
+                                    <li>
+                                        <a class="dropdown-item py-2 text-danger" asp-controller="Account" asp-action="Logout">
+                                            <i class="fa-solid fa-right-from-bracket me-2"></i>Đăng xuất
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item ps-lg-3">
+                                <a class="btn btn-login" asp-controller="Account" asp-action="Login">
+                                    <i class="fa-solid fa-user-lock me-2"></i>ĐĂNG NHẬP
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid px-lg-5">
+        <main role="main" class="pb-5">
+            @RenderBody()
+        </main>
+    </div>
+
+    <div class="modal fade" id="layoutLeaveModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <form id="layoutLeaveForm">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header bg-dark text-white border-0 p-4">
+                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-paper-plane me-2 text-warning"></i>GỬI ĐƠN ĐĂNG KÝ NGHỈ</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Từ ngày:</label>
+                            <input type="date" name="startDate" class="form-control form-control-lg border-2" required min="@DateTime.Now.ToString("yyyy-MM-dd")">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Đến hết ngày:</label>
+                            <input type="date" name="endDate" class="form-control form-control-lg border-2" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Lý do nghỉ:</label>
+                            <textarea name="reason" class="form-control border-2" rows="3" placeholder="Nhập lý do chi tiết..." required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-4 pt-0">
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" id="btnSubmitLeave" class="btn btn-warning px-4 fw-bold shadow-sm">GỬI YÊU CẦU</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer text-center">
+        <div class="container">
+            <p class="mb-1 text-dark">© 2026 - <span class="fw-bold" style="color: var(--primary-color)">Cổng thông tin Lịch Công Tác</span></p>
+            <p class="text-uppercase mb-0 small opacity-50 fw-bold">Hệ thống quản lý nội bộ chuyên nghiệp</p>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @* Giữ nguyên phần Script AJAX của bạn *@
+    <script>
+        $(document).ready(function () {
+            // Logic format thẻ lịch
+            function formatScheduleCards() {
+                $('.work-content, .schedule-content').each(function() {
+                    let html = $(this).html();
+                    if (html && html.includes('(Cùng tham gia:')) {
+                        let parts = html.split('(Cùng tham gia:');
+                        let mainText = parts[0].trim();
+                        let people = parts[1].replace(')', '').trim();
+                        let newContent = `
+                            <div class="main-text fw-bold mb-1">${mainText}</div>
+                            <div class="participant-row" style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:0.85rem">
+                                <i class="fa-solid fa-users text-primary me-2"></i>
+                                <span><strong>Thành phần:</strong> ${people}</span>
+                            </div>`;
+                        $(this).html(newContent);
+                    }
+                });
+            }
+            formatScheduleCards();
+
+            $('#layoutLeaveForm').on('submit', function (e) {
+                e.preventDefault();
+                const $btn = $('#btnSubmitLeave');
+                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Đang gửi...');
+                $.ajax({
+                    url: '/Admin/SendLeaveRequest',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function (res) {
+                        alert(res.message);
+                        if (res.success) location.reload();
+                        else $btn.prop('disabled', false).text('GỬI YÊU CẦU');
+                    },
+                    error: function() {
+                        alert("Có lỗi xảy ra");
+                        $btn.prop('disabled', false).text('GỬI YÊU CẦU');
+                    }
+                });
+            });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,140 @@
+﻿@model IEnumerable<LichCongTacWeb.Models.LeaveRequest>
+
+@{
+    ViewData["Title"] = "Phê duyệt đơn xin nghỉ";
+}
+
+@* 1. Quan trọng: Đảm bảo Token này nằm trong trang để AJAX lấy được *@
+@Html.AntiForgeryToken()
+
+<div class="container mt-4">
+    <div class="card shadow border-0">
+        <div class="card-header bg-danger text-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-uppercase fw-bold">
+                <i class="fa-solid fa-user-check me-2"></i>Danh sách đơn xin nghỉ chờ duyệt
+            </h5>
+            <span class="badge bg-white text-danger" id="countBadge">@Model.Count() đơn mới</span>
+        </div>
+        <div class="card-body p-0" id="mainContainer">
+            @if (!Model.Any())
+            {
+                <div id="no-data" class="p-5 text-center text-muted">
+                    <i class="fa-solid fa-folder-open fa-3x mb-3 opacity-25"></i>
+                    <p>Hiện tại không có đơn xin nghỉ nào cần xử lý.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle" id="leaveTable">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Họ và tên Lãnh đạo</th>
+                                <th>Thời gian nghỉ</th>
+                                <th>Lý do nghỉ</th>
+                                <th class="text-center">Thao tác xử lý</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr id="row-@item.Id">
+                                    <td class="ps-4">
+                                        <div class="fw-bold text-primary">@item.Leader?.FullName</div>
+                                        <small class="text-muted">Gửi lúc: @item.CreatedAt.ToString("HH:mm - dd/MM/yyyy")</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info text-dark border">
+                                            @item.StartDate.ToString("dd/MM") - @item.EndDate.ToString("dd/MM/yyyy")
+                                        </span>
+                                    </td>
+                                    <td>@item.Reason</td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <button type="button"
+                                                    class="btn btn-success btn-sm px-3"
+                                                    onclick="processLeave(@item.Id, true)">
+                                                <i class="fa fa-check me-1"></i> Duyệt
+                                            </button>
+
+                                            <button type="button"
+                                                    class="btn btn-outline-danger btn-sm px-3"
+                                                    onclick="processLeave(@item.Id, false)">
+                                                <i class="fa fa-times me-1"></i> Từ chối
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function processLeave(requestId, isApproved) {
+            const actionText = isApproved ? "duyệt" : "từ chối";
+
+            // Sử dụng confirm của trình duyệt hoặc SweetAlert nếu bạn có
+            if (!confirm(`Bạn có chắc chắn muốn ${actionText} đơn xin nghỉ này?`)) return;
+
+            const row = $(`#row-${requestId}`);
+            const buttons = row.find('button');
+
+            // Vô hiệu hóa nút tránh bấm nhiều lần
+            buttons.prop('disabled', true);
+
+            // Lấy AntiForgeryToken
+            const token = $('input[name="__RequestVerificationToken"]').val();
+
+            $.ajax({
+                url: '/Admin/ApproveLeave',
+                type: 'POST',
+                data: {
+                    requestId: requestId,
+                    isApproved: isApproved,
+                    "__RequestVerificationToken": token
+                },
+                success: function (res) {
+                    if (res.success) {
+                        // Hiệu ứng phản hồi trực quan
+                        row.css({
+                            "transition": "all 0.5s",
+                            "background-color": isApproved ? "#d1e7dd" : "#f8d7da"
+                        });
+
+                        row.fadeOut(600, function() {
+                            $(this).remove();
+
+                            // Cập nhật số lượng trên badge
+                            const remainingRows = $('#leaveTable tbody tr').length;
+                            $('#countBadge').text(remainingRows + " đơn mới");
+
+                            // Nếu không còn đơn nào thì hiển thị thông báo trống
+                            if (remainingRows === 0) {
+                                $('#mainContainer').html(`
+                                    <div id="no-data" class="p-5 text-center text-muted">
+                                        <i class="fa-solid fa-folder-open fa-3x mb-3 opacity-25"></i>
+                                        <p>Hiện tại không có đơn xin nghỉ nào cần xử lý.</p>
+                                    </div>
+                                `);
+                            }
+                        });
+                    } else {
+                        alert("Thông báo: " + res.message);
+                        buttons.prop('disabled', false);
+                    }
+                },
+                error: function (xhr) {
+                    console.error("Lỗi Server:", xhr.responseText);
+                    alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối hoặc quyền đăng nhập.");
+                    buttons.prop('disabled', false);
+                }
+            });
+        }
+    </script>
+}
